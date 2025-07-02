@@ -208,7 +208,7 @@
 
         // Redirect URI for OAuth. HARDCODED to 127.0.0.1 to avoid localhost vs 127.0.0.1 issues.
         // MUST EXACTLY MATCH "Authorized redirect URIs" in your Google Cloud Console for OAuth Client ID.
-        const GOOGLE_FIT_REDIRECT_URI = "http://127.0.0.1:8000/EWa-Fit-app.html"; 
+        const GOOGLE_FIT_REDIRECT_URI = window.location.href;
 
         const GOOGLE_FIT_SCOPES = [
             'https://www.googleapis.com/auth/fitness.heart_rate.read',
