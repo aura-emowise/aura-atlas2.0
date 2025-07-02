@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmoWise AI Simulator & Mental Compass</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .status-box {
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            background-color: white;
+            margin-bottom: 1rem;
+        }
+        .log-box {
+            height: 400px;
+            background-color: #1f2937;
+            color: #d1d5db;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.875rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            overflow-y: scroll;
+            border: 1px solid #374151;
+        }
+        .log-box p {
+            margin: 0;
+            padding: 0;
+            line-height: 1.5;
+        }
+        .btn {
+            transition: background-color 0.2s;
+        }
+        .status-stress { color: #ef4444; } /* Red */
+        .status-recovering { color: #3b82f6; } /* Blue */
+        .status-normal { color: #22c55e; } /* Green */
+        .stimulator-active { color: #f97316; } /* Orange */
+        .text-error { color: #ef4444; }
+        .text-warning { color: #facc15; }
+        .text-info { color: #60a5fa; }
+        .text-success { color: #22c55e; }
+
+        /* Styles for stress level indicator */
+        .stress-level-indicator {
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            text-align: center;
+            font-weight: bold;
+            color: white;
+        }
+        .stress-level-indicator.stress {
+            background-color: #ef4444; /* Red */
+        }
+        .stress-level-indicator.recovering {
+            background-color: #3b82f6; /* Blue */
+        }
+        .stress-level-indicator.normal {
+            background-color: #22c55e; /* Green */
+        }
+        .stress-level-indicator.zen {
+            color: #4a4a4a; /* Darker text for light background */
+            background: linear-gradient(135deg, #fcebcf 0%, #f7d794 100%); /* Beige/Gold Gradient */
+            border: 1px solid #e0b06b;
+        }
+        /* Style for the map container */
+        #map {
+            width: 100%;
+            height: 300px; /* Fixed height for the map */
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            margin-bottom: 1rem;
+        }
+        /* Note: For markers, Google Maps doesn't directly support custom web-font emojis
+           as marker icons. We use default SymbolPath or custom image.
+           For this demo, we'll revert to a colored circle marker, 
+           as direct emoji icons require more complex setup/image generation. */
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-5xl mx-auto">
+        <h1 class="text-2xl font-bold text-gray-800 mb-4">EmoWise AI Simulator & Mental Compass</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Left Panel -->
+            <div>
+                <!-- Biometric Data (Simulated EmoSense) -->
+                <div class="status-box">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-3 border-b pb-2">Live Biometric Data (Simulated EmoSense)</h2>
+                    <div class="space-y-2 text-gray-600">
+                        <p id="bp_label" class="text-base">Blood Pressure: --/-- mmHg</p>
+                        <p id="spo2_label" class="text-base">SpO2: --%</p>
+                        <p id="eda_label" class="text-base">Electrodermal Activity: -- µS</p>
+                    </div>
+                </div>
+
+                <!-- Google Fit Data Section -->
+                <div class="status-box">
+                    <div class="flex items-center justify-between mb-3 border-b pb-2">
+                        <h2 class="text-lg font-semibold text-gray-700">Google Fit Data (Last 24 Hours, Hourly Averages)</h2>
+                        <button id="toggle_fit_data_button" class="btn bg-gray-300 hover:bg-gray-400 text-gray-800 text-sm py-1 px-3 rounded-lg">
+                            Show Data
+                        </button>
+                    </div>
+                    <div id="fit_data_content" class="space-y-1 text-gray-600 hidden">
+                        <div id="fit_data_container" class="space-y-1 text-gray-600">
+                            <p class="text-base text-gray-400">No recent heart rate or oxygen saturation data found.</p>
+                        </div>
+                        <button id="authorize_fit_button" class="btn w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg mt-4">
+                            Authorize Google Fit
+                        </button>
+                        <button id="fetch_fit_data_button" class="btn w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg mt-2">
+                            Fetch Google Fit Data
+                        </button>
+                    </div>
+                    
+                    <!-- Emotional Landscape Map -->
+                    <div class="flex items-center justify-between mb-3 border-b pb-2 mt-4">
+                        <h2 class="text-lg font-semibold text-gray-700">Emotional Landscape Map</h2>
+                        <button id="toggle_map_button" class="btn bg-gray-300 hover:bg-gray-400 text-gray-800 text-sm py-1 px-3 rounded-lg">
+                            Show Map
+                        </button>
+                    </div>
+                    <div id="map_content" class="hidden">
+                        <div id="map"></div>
+                        <div class="activity-summary text-gray-600 text-sm space-y-1 mt-2">
+                            <p class="text-xs text-gray-500 mt-2">User marker color reflects AI state. Areas colored by accumulated user emotional state in this simulated drive, portraying a 'stress/relax' cloud.</p>
+                            <p class="text-xs text-gray-500">[Traffic stress levels simulated for illustration: e.g., Friday evening in downtown LA]</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Status -->
+                <div class="status-box">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-3 border-b pb-2">System Status</h2>
+                    <div class="space-y-2">
+                        <p id="ai_status_label" class="text-lg font-bold">AI Status: INITIALIZING</p>
+                        <p id="stimulator_status_label" class="text-lg font-bold">nVagus Stimulator: INACTIVE</p>
+                    </div>
+                    <!-- Stress Level Indicator -->
+                    <div id="stress_level_indicator" class="stress-level-indicator mt-3">
+                        Analyzing...
+                    </div>
+                </div>
+
+                <!-- Simulation Controls -->
+                <div class="status-box">
+                    <h2 class="text-lg font-semibold text-gray-700 mb-3 border-b pb-2">Simulation Controls</h2>
+                    <div class="flex space-x-4">
+                        <button id="stress_button" class="btn w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">
+                            Induce Stress
+                        </button>
+                        <button id="remove_stress_button" class="btn w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">
+                            Remove Stress
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel -->
+            <div>
+                 <!-- Event Log Header with Button -->
+                 <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-lg font-semibold text-gray-700">Event Log</h2>
+                    <button id="toggle_log_button" class="btn bg-gray-300 hover:bg-gray-400 text-gray-800 text-sm py-1 px-3 rounded-lg">
+                        Show Log
+                    </button>
+                 </div>
+                <!-- Event Log (initially hidden) -->
+                <div id="log_box" class="log-box hidden"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Main Application Script -->
+    <script defer>
+        // --- CONFIGURATION ---
+        const NORMAL_BP = { systolic: 115, diastolic: 75 };
+        const NORMAL_SPO2 = 98.5;
+        const NORMAL_EDA = 2.5;
+
+        const STRESS_THRESHOLD_BP_SYSTOLIC = 130;
+        const STRESS_THRESHOLD_EDA = 5.0;
+
+        const UPDATE_INTERVAL_MS = 1500;
+        const STRESS_IMPACT_BP = 25;
+        const STRESS_IMPACT_EDA = 5;
+        const RECOVERY_SPEED = 0.25;
+        const BP_RANDOM_FLUCTUATION = 2;
+        const SPO2_RANDOM_FLUCTUATION = 0.2;
+        const EDA_RANDOM_FLUCTUATION = 0.4;
+
+        const ZEN_MASTER_THRESHOLD_CYCLES = 50; 
+
+        // --- Google API Configuration ---
+        // Your Google Fit Client ID
+        const GOOGLE_FIT_CLIENT_ID = "210098222368-9klg0s49b8ielj3n4dldvr9gcbsjev7.apps.googleusercontent.com"; 
+        // Your Google Maps API Key
+        const GOOGLE_MAPS_API_KEY = "AIzaSyAHiw3VyTyEn-fJ-XgerJ_UbCG-oEOn9d8"; 
+
+        // Redirect URI for OAuth. HARDCODED to 127.0.0.1 to avoid localhost vs 127.0.0.1 issues.
+        // MUST EXACTLY MATCH "Authorized redirect URIs" in your Google Cloud Console for OAuth Client ID.
+        const GOOGLE_FIT_REDIRECT_URI = "http://127.0.0.1:8000/EWa-Fit-app.html"; 
+
+        const GOOGLE_FIT_SCOPES = [
+            'https://www.googleapis.com/auth/fitness.heart_rate.read',
+            'https://www.googleapis.com/auth/fitness.oxygen_saturation.read'
+        ].join(' '); // Removed fitness.activity.read as per request
+
+        let googleFitAccessToken = null;
+        let consecutiveNormalCycles = 0; 
+
+        // Globals for Google Maps
+        let map;
+        let polyline;
+        let userMarker;
+        let routeAnimationInterval;
+        let currentSimulatedRouteIndex = 0;
+
+        const MAP_DEFAULT_CENTER = { lat: 34.052235, lng: -118.243683 }; 
+        const MAP_DEFAULT_ZOOM = 13; 
+
+        const simulatedDriveRoute = [ // Simulated drive route in Downtown LA, reflecting potential traffic/stress areas
+            { lat: 34.0530, lng: -118.2580 }, // Near Figueroa St - often busy
+            { lat: 34.0545, lng: -118.2560 },
+            { lat: 34.0560, lng: -118.2540 },
+            { lat: 34.0550, lng: -118.2510 }, // Transition to a slightly less dense area
+            { lat: 34.0535, lng: -118.2490 },
+            { lat: 34.0520, lng: -118.2470 }, // Near Little Tokyo / Arts District - complex intersections
+            { lat: 34.0510, lng: -118.2450 },
+            { lat: 34.0500, lng: -118.2430 },
+            { lat: 34.0490, lng: -118.2410 }  // End of route
+        ];
+
+        // This array will store references to the circles drawn on the map for each route point
+        // and their accumulated AI status history.
+        const routePointVis = simulatedDriveRoute.map(point => ({
+            position: point,
+            history: [], // Stores AI states over time for this point: { status: "NORMAL", timestamp: ... }
+            circle: null // Reference to google.maps.Circle for this point
+        }));
+
+        const STRESS_HISTORY_LENGTH = 20; // How many recent states to remember for each point
+        const HISTORY_DECAY_TIME_MS = 15 * 60 * 1000; // History older than 15 minutes gradually fades
+
+        // Helper function to convert AI status to a numerical stress value
+        // -1 for Stress, 0 for Recovering, 1 for Normal
+        function getStressValue(status) {
+            switch (status) {
+                case 'STRESS_DETECTED': return -1; 
+                case 'RECOVERING': return 0;     
+                case 'NORMAL': return 1;         
+                default: return 0;
+            }
+        }
+
+        // Helper function to blend colors based on average stress score
+        // Score from -1 (stress) to 1 (normal)
+        function getBlendedColor(score) {
+            let r, g, b;
+            if (score > 0) { // Greenish (normal/relax)
+                // Interpolate from a neutral green to a strong green
+                const normalizedScore = score; // Range 0 to 1
+                r = Math.round(100 * (1 - normalizedScore)); // Less red as it gets greener
+                g = 255;
+                b = Math.round(100 * (1 - normalizedScore)); // Less blue
+            } else { // Reddish (stress)
+                // Interpolate from a neutral red to a strong red
+                const normalizedScore = -score; // Range 0 to 1
+                r = 255;
+                g = Math.round(255 * (1 - normalizedScore * 0.7)); // Less green as it gets redder
+                b = Math.round(255 * (1 - normalizedScore * 0.7)); // Less blue
+            }
+            return `rgb(${r},${g},${b})`;
+        }
+
+
+        // --- Simulation Core Components & Integration ---
+        const simulatedEmoSense = {
+            isStressInduced: false,
+            currentBP: { ...NORMAL_BP },
+            currentSPO2: NORMAL_SPO2,
+            currentEDA: NORMAL_EDA,
+
+            setStressState(isStressed) {
+                this.isStressInduced = isStressed;
+                if (isStressed) {
+                    consecutiveNormalCycles = 0;
+                    ui.logMessage('Zen Master counter reset due to stress induction.', 'warning');
+                }
+            },
+
+            getBiometricData() {
+                let { systolic, diastolic } = this.currentBP;
+
+                if (this.isStressInduced) {
+                    systolic += STRESS_IMPACT_BP * (Math.random() * 0.4 + 0.8);
+                    this.currentEDA += STRESS_IMPACT_EDA * (Math.random() * 0.4 + 0.8);
+                    this.currentSPO2 -= (Math.random() * 0.2 + 0.1); 
+                } else {
+                    const systolicDiff = systolic - NORMAL_BP.systolic;
+                    const edaDiff = this.currentEDA - NORMAL_EDA;
+                    const spo2Diff = this.currentSPO2 - NORMAL_SPO2;
+
+                    systolic -= systolicDiff * RECOVERY_SPEED * (Math.random() * 0.2 + 0.9);
+                    this.currentEDA -= edaDiff * RECOVERY_SPEED * (Math.random() * 0.2 + 0.9);
+                    this.currentSPO2 -= spo2Diff * RECOVERY_SPEED * (Math.random() * 0.2 + 0.9);
+                }
+
+                systolic += (Math.random() - 0.5) * BP_RANDOM_FLUCTUATION;
+                diastolic = systolic * 0.65 + (Math.random() - 0.5) * BP_RANDOM_FLUCTUATION;
+                this.currentSPO2 += (Math.random() - 0.5) * SPO2_RANDOM_FLUCTUATION;
+                this.currentEDA += (Math.random() - 0.5) * EDA_RANDOM_FLUCTUATION;
+
+                this.currentBP = {
+                    systolic: Math.min(Math.max(systolic, 90), 180),
+                    diastolic: Math.min(Math.max(diastolic, 60), 110),
+                };
+                this.currentSPO2 = Math.max(94.0, Math.min(this.currentSPO2, 100.0));
+                this.currentEDA = Math.max(0.5, Math.min(this.currentEDA, 15.0));
+
+                return {
+                    blood_pressure: this.currentBP,
+                    spo2: this.currentSPO2,
+                    eda: this.currentEDA,
+                };
+            },
+        };
+
+        const simulatedVagusStimulator = {
+            isActive: false,
+            activate() { this.isActive = true; },
+            deactivate() { this.isActive = false; },
+            getStatus() { return this.isActive ? "ACTIVE" : "INACTIVE"; },
+        };
+
+        const emoAI = {
+            profile: {
+                bp_threshold_systolic: STRESS_THRESHOLD_BP_SYSTOLIC,
+                eda_threshold: STRESS_THRESHOLD_EDA,
+            },
+            analyzeData(data, stimulatorWasActive) {
+                const { systolic } = data.blood_pressure; 
+                const { eda } = data;
+
+                const isCurrentlyStressed =
+                    systolic > this.profile.bp_threshold_systolic ||
+                    eda > this.profile.eda_threshold;
+                
+                let stressDetails = "";
+                if (systolic > this.profile.bp_threshold_systolic) {
+                    stressDetails += `BP (${systolic.toFixed(0)} > ${this.profile.bp_threshold_systolic}) `;
+                }
+                if (eda > this.profile.eda_threshold) {
+                    stressDetails += `EDA (${eda.toFixed(2)} µS > ${this.profile.eda_threshold} µS) `;
+                }
+
+                if (isCurrentlyStressed) {
+                    return { status: "STRESS_DETECTED", details: stressDetails.trim() };
+                }
+                if (stimulatorWasActive) {
+                    return { status: "RECOVERING", details: "Stimulator active, metrics improving." };
+                }
+                return { status: "NORMAL", details: "Biometric levels normal." };
+            },
+        };
+
+        // --- GUI Management ---
+        const ui = {
+            bpLabel: document.getElementById('bp_label'),
+            spo2Label: document.getElementById('spo2_label'),
+            edaLabel: document.getElementById('eda_label'),
+            fitDataContent: document.getElementById('fit_data_content'), 
+            fitDataContainer: document.getElementById('fit_data_container'), 
+            mapContent: document.getElementById('map_content'), 
+            aiStatusLabel: document.getElementById('ai_status_label'),
+            stimulatorStatusLabel: document.getElementById('stimulator_status_label'),
+            stressLevelIndicator: document.getElementById('stress_level_indicator'), 
+            logBox: document.getElementById('log_box'),
+            toggleLogButton: document.getElementById('toggle_log_button'), 
+            toggleFitDataButton: document.getElementById('toggle_fit_data_button'), 
+            toggleMapButton: document.getElementById('toggle_map_button'), 
+            stressButton: document.getElementById('stress_button'),
+            removeStressButton: document.getElementById('remove_stress_button'),
+            authorizeFitButton: document.getElementById('authorize_fit_button'),
+            fetchFitDataButton: document.getElementById('fetch_fit_data_button'),
+
+
+            logMessage(message, type = 'info') {
+                const time = new Date().toLocaleTimeString('en-GB');
+                const p = document.createElement('p');
+                p.textContent = `${time} - ${message}`;
+                if (type === 'error') p.classList.add('text-error');
+                else if (type === 'warning') p.classList.add('text-warning');
+                else if (type === 'success') p.classList.add('text-success');
+                else if (type === 'info') p.classList.add('text-info');
+                this.logBox.appendChild(p);
+                if (!this.logBox.classList.contains('hidden')) {
+                    this.logBox.scrollTop = this.logBox.scrollHeight;
+                }
+            },
+
+            updateGUI(data, aiResult) {
+                // Update Simulated EmoSense data
+                this.bpLabel.textContent = `Blood Pressure: ${data.blood_pressure.systolic.toFixed(0)}/${data.blood_pressure.diastolic.toFixed(0)} mmHg`;
+                this.spo2Label.textContent = `SpO2: ${data.spo2.toFixed(1)}%`;
+                this.edaLabel.textContent = `Electrodermal Activity: ${data.eda.toFixed(2)} µS`;
+
+                // Update AI status
+                this.aiStatusLabel.textContent = `AI Status: ${aiResult.status}`;
+                this.aiStatusLabel.className = 'text-lg font-bold'; 
+
+                // Update Stress Level Indicator
+                this.stressLevelIndicator.className = 'stress-level-indicator mt-3'; 
+                let stressLevelText = '';
+                
+                if (aiResult.status === 'STRESS_DETECTED') {
+                    this.aiStatusLabel.classList.add('status-stress');
+                    this.stressLevelIndicator.classList.add('stress');
+                    stressLevelText = 'Stress Detected! 🚨';
+                    consecutiveNormalCycles = 0; 
+                } else if (aiResult.status === 'RECOVERING') {
+                    this.aiStatusLabel.classList.add('status-recovering');
+                    this.stressLevelIndicator.classList.add('recovering');
+                    stressLevelText = 'Recovering... Slow down.';
+                    consecutiveNormalCycles = 0; 
+                } else { // NORMAL
+                    this.aiStatusLabel.classList.add('status-normal');
+                    
+                    consecutiveNormalCycles++; 
+                    if (consecutiveNormalCycles >= ZEN_MASTER_THRESHOLD_CYCLES) {
+                        this.stressLevelIndicator.classList.add('zen');
+                        stressLevelText = `Zen Master! 🧘 ${consecutiveNormalCycles} cycles stress-free!`;
+                        if (consecutiveNormalCycles === ZEN_MASTER_THRESHOLD_CYCLES) {
+                            ui.logMessage('ACHIEVEMENT UNLOCKED: ZEN MASTER!','success');
+                        }
+                    } else {
+                        this.stressLevelIndicator.classList.add('normal');
+                        stressLevelText = `Stress Level: Normal. ${consecutiveNormalCycles} cycles stress-free.`;
+                    }
+                }
+                this.stressLevelIndicator.textContent = stressLevelText;
+
+                // Update user marker color on map and location-based stress visualization
+                if (userMarker && map) { // Only if map is initialized
+                    // Update user marker icon color based on AI status
+                    let markerColor = 'grey'; // Default
+                    switch(aiResult.status) {
+                        case 'STRESS_DETECTED': markerColor = 'red'; break;
+                        case 'RECOVERING': markerColor = 'blue'; break;
+                        case 'NORMAL': markerColor = 'green'; break;
+                        default: markerColor = 'grey'; break;
+                    }
+                    if (consecutiveNormalCycles >= ZEN_MASTER_THRESHOLD_CYCLES) {
+                        markerColor = 'gold'; // Zen Master overrides
+                    }
+
+                    userMarker.setIcon({
+                        path: google.maps.SymbolPath.CIRCLE, // Or other shapes like google.maps.SymbolPath.FORWARD_CLOSED_ARROW
+                        fillColor: markerColor,
+                        fillOpacity: 1,
+                        strokeWeight: 0,
+                        scale: 10 
+                    });
+
+                    // Update location-based stress visualization (draw circles)
+                    const currentRoutePointData = routePointVis[currentSimulatedRouteIndex];
+                    if (currentRoutePointData) {
+                        // Add current AI status to history for this point
+                        currentRoutePointData.history.push({ status: aiResult.status, timestamp: Date.now() });
+                        
+                        // Clean up old history and calculate weighted average score
+                        let totalStressValue = 0;
+                        let totalWeight = 0;
+                        const now = Date.now();
+                        
+                        // Filter out very old entries and apply decay to recent ones
+                        currentRoutePointData.history = currentRoutePointData.history.filter(entry => {
+                            const age = now - entry.timestamp;
+                            if (age > HISTORY_DECAY_TIME_MS * 2) return false; // Remove entries older than 30 mins
+                            
+                            const decayFactor = Math.max(0, 1 - (age / HISTORY_DECAY_TIME_MS)); // Fade out over 15 mins
+                            totalStressValue += getStressValue(entry.status) * decayFactor;
+                            totalWeight += decayFactor;
+                            return true;
+                        });
+
+                        const averageStressScore = totalWeight > 0 ? totalStressValue / totalWeight : 0; // -1 to 1
+
+                        // Determine circle color and opacity based on average score
+                        const circleColor = getBlendedColor(averageStressScore);
+                        // Opacity dependent on how much data we have (totalWeight implies # of relevant entries)
+                        // and how far from neutral the score is.
+                        let fillOpacity = Math.min(0.25, Math.abs(averageStressScore) * 0.2 + (totalWeight > 0 ? 0.05 : 0)); // Min opacity 0, Max 0.25
+
+                        // If no history, or mostly neutral, make it very faint
+                        if (totalWeight < 0.1) fillOpacity = 0; 
+                        
+                        // If circle doesn't exist yet, create it.
+                        if (!currentRoutePointData.circle) {
+                            currentRoutePointData.circle = new google.maps.Circle({
+                                strokeOpacity: 0, 
+                                strokeWeight: 0,
+                                fillOpacity: 0, 
+                                map: map,
+                                center: currentRoutePointData.position,
+                                radius: 100 // Radius of the "aura" in meters (adjust as needed for map zoom)
+                            });
+                        }
+                        currentRoutePointData.circle.setOptions({
+                            fillColor: circleColor,
+                            fillOpacity: fillOpacity
+                        });
+                    }
+                }
+
+                // Update stimulator status
+                const stimStatus = simulatedVagusStimulator.getStatus();
+                this.stimulatorStatusLabel.textContent = `nVagus Stimulator: ${stimStatus}`;
+                this.stimulatorStatusLabel.className = 'text-lg font-bold';
+                if (stimStatus === 'ACTIVE') this.stimulatorStatusLabel.classList.add('stimulator-active');
+            },
+
+            updateGoogleFitData(hourlyAverages) {
+                this.fitDataContainer.innerHTML = ''; 
+                if (hourlyAverages.length === 0) {
+                    this.fitDataContainer.innerHTML = '<p class="text-base text-gray-400">No recent heart rate or oxygen saturation data found.</p>';
+                    return;
+                }
+
+                hourlyAverages.sort((a,b) => b.timestamp - a.timestamp);
+
+                const limitDisplay = 10; 
+                hourlyAverages.slice(0, limitDisplay).forEach(data => {
+                    const p = document.createElement('p');
+                    p.classList.add('text-base');
+                    const date = new Date(data.timestamp);
+                    const localTimeFormatter = new Intl.DateTimeFormat('en-US', { hour: '2-digit', minute: '2-digit' });
+                    const localDateFormatter = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'numeric', day: 'numeric'});
+                    const formattedDate = localDateFormatter.format(date);
+                    const formattedTime = localTimeFormatter.format(date);
+                    
+                    let hrText = data.averageHR !== null ? `HR: ${data.averageHR.toFixed(1)} bpm` : 'HR: N/A';
+                    let spo2Text = data.averageSpO2 !== null ? `SpO2: ${data.averageSpO2.toFixed(1)} %` : 'SpO2: N/A';
+                    p.textContent = `${formattedDate} ${formattedTime}: ${hrText}, ${spo2Text}`;
+                    this.fitDataContainer.appendChild(p);
+                });
+                if (hourlyAverages.length > limitDisplay) {
+                    const p = document.createElement('p');
+                    p.classList.add('text-base', 'text-gray-500', 'text-sm');
+                    p.textContent = `...and ${hourlyAverages.length - limitDisplay} more hours.`;
+                    this.fitDataContainer.appendChild(p);
+                }
+            },
+            // Removed updateActivitySummary as per request
+        };
+
+        // --- Google Fit Authentication & Data Fetching ---
+        function authorizeGoogleFit() {
+            const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+                            `client_id=${GOOGLE_FIT_CLIENT_ID}&` +
+                            `redirect_uri=${encodeURIComponent(GOOGLE_FIT_REDIRECT_URI)}&` +
+                            `response_type=token&` + 
+                            `scope=${encodeURIComponent(GOOGLE_FIT_SCOPES)}&` +
+                            `include_granted_scopes=true`;
+            window.location.href = authUrl;
+        }
+
+        function handleOAuthRedirect() {
+            const hash = window.location.hash.substring(1); 
+            const params = new URLSearchParams(hash);
+            const accessToken = params.get('access_token');
+            if (accessToken) {
+                googleFitAccessToken = accessToken;
+                ui.logMessage('Google Fit Authorized successfully!', 'success');
+                ui.authorizeFitButton.style.display = 'none'; 
+                ui.fetchFitDataButton.style.display = 'block'; 
+                window.location.href = GOOGLE_FIT_REDIRECT_URI; 
+            } else {
+                ui.logMessage('Google Fit Authorization failed or denied.', 'error');
+            }
+        }
+
+        async function fetchGoogleFitData() {
+            if (!googleFitAccessToken) {
+                ui.logMessage('Google Fit not authorized. Please authorize first.', 'warning');
+                return;
+            }
+
+            ui.logMessage('Fetching Google Fit HR/SpO2 data (last 24 hours)...', 'info');
+
+            const headers = {
+                'Authorization': `Bearer ${googleFitAccessToken}`,
+                'Content-Type': 'application/json'
+            };
+
+            const now = Date.now();
+            const startTimeMillis = now - (24 * 60 * 60 * 1000); 
+
+            const requestBody = {
+                aggregateBy: [
+                    { dataTypeName: 'com.google.heart_rate.bpm' },
+                    { dataTypeName: 'com.google.oxygen_saturation' }
+                ],
+                bucketByTime: { durationMillis: 3600000 }, 
+                startTimeMillis: startTimeMillis,
+                endTimeMillis: now
+            };
+
+            try {
+                const response = await fetch(`https://www.googleapis.com/fitness/v1/users/me/dataset:aggregate`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Google Fit API Error: ${response.status} - ${errorData.error.message}`);
+                }
+
+                const data = await response.json();
+
+                const hourlyDataMap = new Map(); 
+
+                if (data.bucket && data.bucket.length > 0) {
+                    data.bucket.forEach(bucket => {
+                        const bucketStartTime = parseInt(bucket.startTimeMillis);
+                        if (!hourlyDataMap.has(bucketStartTime)) {
+                            hourlyDataMap.set(bucketStartTime, { hrValues: [], spo2Values: [] });
+                        }
+                        const currentHourData = hourlyDataMap.get(bucketStartTime);
+
+                        bucket.dataset.forEach(dataset => {
+                            dataset.point.forEach(point => {
+                                point.value.forEach(val => {
+                                    if (dataset.dataTypeName === 'com.google.heart_rate.bpm' && val.fpVal !== undefined) {
+                                        currentHourData.hrValues.push(val.fpVal);
+                                    } else if (dataset.dataTypeName === 'com.google.oxygen_saturation' && val.fpVal !== undefined) {
+                                        currentHourData.spo2Values.push(val.fpVal);
+                                    }
+                                });
+                            });
+                        });
+                    });
+                }
+
+                const hourlyAverages = [];
+                hourlyDataMap.forEach((values, timestamp) => {
+                    const averageHR = values.hrValues.length > 0 ? values.hrValues.reduce((sum, v) => sum + v, 0) / values.hrValues.length : null;
+                    const averageSpO2 = values.spo2Values.length > 0 ? values.spo2Values.reduce((sum, v) => sum + v, 0) / values.spo2Values.length : null;
+                    hourlyAverages.push({ timestamp, averageHR, averageSpO2 });
+                });
+
+                ui.logMessage(`Found ${hourlyAverages.length} hourly HR/SpO2 entries.`, 'info');
+                ui.updateGoogleFitData(hourlyAverages);
+
+            } catch (error) {
+                ui.logMessage(`Error fetching Google Fit HR/SpO2 data: ${error.message}`, 'error');
+                console.error("Google Fit HR/SpO2 Fetch Error:", error);
+            }
+        }
+
+        // Removed fetchActivitySummary as per request
+
+        // --- Google Maps Initialization ---
+        window.initMap = function() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: MAP_DEFAULT_CENTER,
+                zoom: MAP_DEFAULT_ZOOM,
+                mapTypeId: 'roadmap', // 'roadmap' or 'satellite' usually better for urban/traffic views
+                disableDefaultUI: true // minimalistic UI
+            });
+
+            // Draw the simulated drive route
+            polyline = new google.maps.Polyline({
+                path: simulatedDriveRoute,
+                geodesic: true,
+                strokeColor: '#0000FF', // Blue color for the path
+                strokeOpacity: 0.7,
+                strokeWeight: 3
+            });
+            polyline.setMap(map);
+
+            // Create initial circles for each point on the route (initially transparent)
+            routePointVis.forEach(rp => {
+                rp.circle = new google.maps.Circle({
+                    strokeOpacity: 0, 
+                    strokeWeight: 0,
+                    fillOpacity: 0, 
+                    map: map,
+                    center: rp.position,
+                    radius: 100 // meters - adjust as needed for visibility
+                });
+            });
+
+            // User marker (initially at the start of the route, will animate)
+            userMarker = new google.maps.Marker({
+                position: simulatedDriveRoute[0],
+                map: map,
+                icon: { 
+                    path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW, // Arrow pointing forward
+                    fillColor: 'grey', 
+                    fillOpacity: 1,
+                    strokeWeight: 0,
+                    scale: 6, // Size of the arrow
+                    rotation: 0 // Will be updated as it moves
+                },
+                title: 'Your Vehicle'
+            });
+
+            // Start animation of user marker
+            if (routeAnimationInterval) clearInterval(routeAnimationInterval);
+            routeAnimationInterval = setInterval(() => {
+                const prevIndex = currentSimulatedRouteIndex;
+                currentSimulatedRouteIndex = (currentSimulatedRouteIndex + 1) % simulatedDriveRoute.length;
+                userMarker.setPosition(simulatedDriveRoute[currentSimulatedRouteIndex]);
+                map.panTo(userMarker.getPosition()); 
+
+                // Update marker rotation to simulate direction of travel
+                if (currentSimulatedRouteIndex > 0) {
+                    const prevLatLng = simulatedDriveRoute[prevIndex];
+                    const currLatLng = simulatedDriveRoute[currentSimulatedRouteIndex];
+                    const heading = google.maps.geometry.spherical.computeHeading(new google.maps.LatLng(prevLatLng.lat, prevLatLng.lng), new google.maps.LatLng(currLatLng.lat, currLatLng.lng));
+                    userMarker.setIcon({
+                        path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                        fillColor: userMarker.icon.fillColor, // Keep current fill color
+                        fillOpacity: 1,
+                        strokeWeight: 0,
+                        scale: 6,
+                        rotation: heading
+                    });
+                }
+            }, UPDATE_INTERVAL_MS * 2); // Animate marker every 2 main cycles
+
+            ui.logMessage('Google Map initialized with a demo route.', 'info');
+        }
+        
+        // --- Main Cycle ---
+        function main_cycle() {
+            // 1. Get EmoSense data (from simulation)
+            const biometricData = simulatedEmoSense.getBiometricData();
+            ui.logMessage(`INPUT: BPS: ${biometricData.blood_pressure.systolic.toFixed(0)}, DBP: ${biometricData.blood_pressure.diastolic.toFixed(0)}, SpO2: ${biometricData.spo2.toFixed(1)}%, EDA: ${biometricData.eda.toFixed(2)} µS`);
+
+            // 2. AI Analysis (based on simulated data)
+            const stimulatorWasActive = simulatedVagusStimulator.isActive;
+            const aiResult = emoAI.analyzeData(biometricData, stimulatorWasActive);
+            ui.logMessage(`AI ANALYSIS: State: '${aiResult.status}'${aiResult.details ? ` (${aiResult.details})` : ''}`);
+
+            // 3. System Decisions
+            if (aiResult.status === 'STRESS_DETECTED') {
+                if (!stimulatorWasActive) {
+                    ui.logMessage('ACTION: Stress detected! Activating nVagus stimulator.', 'error');
+                    simulatedVagusStimulator.activate();
+                } else {
+                    ui.logMessage('ACTION: Stress detected, stimulator already active.', 'warning');
+                }
+            } else if (aiResult.status === 'RECOVERING' || aiResult.status === 'NORMAL') {
+                if (stimulatorWasActive) {
+                    ui.logMessage('ACTION: State is Normal/Recovering. Deactivating stimulator.', 'success');
+                } else {
+                    ui.logMessage('ACTION: System stable, stimulator inactive. No action needed.', 'info');
+                }
+            }
+            ui.logMessage('---');
+            
+            // 4. Update GUI
+            ui.updateGUI(biometricData, aiResult);
+        }
+        
+        // --- Event Handlers ---
+        ui.stressButton.addEventListener('click', () => {
+            ui.logMessage('SIMULATOR: Manual stress induction triggered.', 'error');
+            simulatedEmoSense.setStressState(true);
+        });
+
+        ui.removeStressButton.addEventListener('click', () => {
+            ui.logMessage('SIMULATOR: Manual stress removal. Recovery initiated.', 'success');
+            simulatedEmoSense.setStressState(false);
+        });
+
+        ui.authorizeFitButton.addEventListener('click', authorizeGoogleFit);
+        ui.fetchFitDataButton.addEventListener('click', () => {
+            fetchGoogleFitData(); 
+            // Removed fetchActivitySummary()
+        });
+
+        // Event handler for "Toggle Log" button
+        ui.toggleLogButton.addEventListener('click', () => {
+            ui.logBox.classList.toggle('hidden');
+            if (ui.logBox.classList.contains('hidden')) {
+                ui.toggleLogButton.textContent = 'Show Log';
+            } else {
+                ui.toggleLogButton.textContent = 'Hide Log';
+                ui.logBox.scrollTop = ui.logBox.scrollHeight;
+            }
+        });
+
+        // Event handler for "Toggle Fit Data" button
+        ui.toggleFitDataButton.addEventListener('click', () => {
+            ui.fitDataContent.classList.toggle('hidden');
+            if (ui.fitDataContent.classList.contains('hidden')) {
+                ui.toggleFitDataButton.textContent = 'Show Data';
+            } else {
+                ui.toggleFitDataButton.textContent = 'Hide Data';
+                fetchGoogleFitData(); 
+            }
+        });
+
+        // Event handler for "Toggle Map" button
+        ui.toggleMapButton.addEventListener('click', () => {
+            // Only load Google Maps API script if map is about to be shown for the first time
+            // and the script hasn't been added yet.
+            if (ui.mapContent.classList.contains('hidden') && !window.google && !document.getElementById('google-maps-script')) {
+                const script = document.createElement('script');
+                script.id = 'google-maps-script';
+                script.async = true;
+                script.defer = true;
+                // Add "geometry" library for computeHeading to calculate marker rotation
+                script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry&callback=initMap`; 
+                document.head.appendChild(script);
+                ui.logMessage('Loading Google Maps API script...', 'info');
+            }
+
+            ui.mapContent.classList.toggle('hidden');
+            if (ui.mapContent.classList.contains('hidden')) {
+                ui.toggleMapButton.textContent = 'Show Map';
+                // Stop animation when map is hidden to save resources
+                if (routeAnimationInterval) clearInterval(routeAnimationInterval);
+            } else {
+                ui.toggleMapButton.textContent = 'Hide Map';
+                // If map was hidden, it might need to resize if its container was also hidden
+                if (map) { 
+                    google.maps.event.trigger(map, 'resize');
+                    map.setCenter(userMarker ? userMarker.getPosition() : MAP_DEFAULT_CENTER); // Recenter on user if exists, else default
+                }
+                // Restart animation when map is shown
+                if (!routeAnimationInterval && window.google && map) { 
+                    routeAnimationInterval = setInterval(() => {
+                        const prevIndex = currentSimulatedRouteIndex;
+                        currentSimulatedRouteIndex = (currentSimulatedRouteIndex + 1) % simulatedDriveRoute.length;
+                        userMarker.setPosition(simulatedDriveRoute[currentSimulatedRouteIndex]);
+                        map.panTo(userMarker.getPosition());
+
+                        if (currentSimulatedRouteIndex > 0) {
+                            const prevLatLng = simulatedDriveRoute[prevIndex];
+                            const currLatLng = simulatedDriveRoute[currentSimulatedRouteIndex];
+                            const heading = google.maps.geometry.spherical.computeHeading(new google.maps.LatLng(prevLatLng.lat, prevLatLng.lng), new google.maps.LatLng(currLatLng.lat, currLatLng.lng));
+                            userMarker.setIcon(Object.assign({}, userMarker.getIcon(), { rotation: heading }));
+                        }
+
+                    }, UPDATE_INTERVAL_MS * 2);
+                }
+                // Removed fetchActivitySummary()
+            }
+        });
+
+
+        // --- Initialization ---
+        window.onload = () => {
+            ui.logMessage('System Initialized. AI Profile Loaded.', 'success');
+            
+            // Handle OAuth redirect as the first thing on load
+            const hash = window.location.hash.substring(1); 
+            const params = new URLSearchParams(hash);
+            const accessToken = params.get('access_token');
+            if (accessToken) {
+                googleFitAccessToken = accessToken;
+                ui.logMessage('Google Fit Authorized successfully on page load!', 'success');
+            }
+            // Clean up URL hash after processing token from redirect.
+            window.history.replaceState({}, document.title, GOOGLE_FIT_REDIRECT_URI.split('?')[0]);
+
+
+            if (!googleFitAccessToken) {
+                ui.logMessage('Please authorize Google Fit to fetch real data.', 'info');
+            } else {
+                ui.authorizeFitButton.style.display = 'none';
+                ui.fetchFitDataButton.style.display = 'block';
+                // Automatically show Fit Data and Map content if authorized on load
+                ui.fitDataContent.classList.remove('hidden');
+                ui.toggleFitDataButton.textContent = 'Hide Data'; 
+                ui.mapContent.classList.remove('hidden');
+                ui.toggleMapButton.textContent = 'Hide Map';
+                // Initial data fetch for Fit (activity is removed)
+                fetchGoogleFitData(); 
+            }
+
+            ui.logMessage('Starting main EmoSense simulation loop...', 'info');
+            setInterval(main_cycle, UPDATE_INTERVAL_MS);
+        };
+    </script>
+</body>
+</html>
