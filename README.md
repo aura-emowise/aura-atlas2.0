@@ -20,6 +20,9 @@ You can see more about my project EmoWise by clicking on the link  https://www.f
  Core Method & Value Proposition
 EmoWise's method centers on continuous monitoring of physiological indicators of stress (Heart Rate, Blood Pressure, Electrodermal Activity). Our AI analyzes these real-time metrics to determine the user's current emotional state. When stress is detected, the system simulates the activation of an nVagus stimulator to gently guide the user back to a state of calm. Crucially, EmoWise offers a unique "emotional landscape" visualization on a map, illustrating how the user's mental state interacts with their environment. Imagine "stress clouds" (red) appearing in areas where the user experiences high negative emotional load, and "relax zones" (green) where calm prevails. This provides valuable insights into how different locations or situations affect one's mental well-being over time.
 
+
+TRY IT   https://aura-emowise.github.io/aura-atlas2.0/EWa-Fit-app.html
+
  Key Features
 
 *   Live Biometric Simulation: Simulates real-time Blood Pressure, Oxygen Saturation (SpO2), and Electrodermal Activity (EDA) to represent physiological state.
