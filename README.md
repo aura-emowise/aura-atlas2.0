@@ -1,6 +1,6 @@
 
 # aura-atlas2.0
-final itteration
+final iteration
 
 
  EmoWise AI Simulator: Your Personal Mental Compass
