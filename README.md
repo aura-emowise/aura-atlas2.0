@@ -1,8 +1,8 @@
-Google Maps Platform Awards
+*Google Maps Platform Awards*
+
 final iteration
 
 
- EmoWise AI Simulator: Your Personal Mental Compass
 
  Tagline
 Real-time biometric-driven AI for proactive emotional well-being and live emotional landscape visualization.
