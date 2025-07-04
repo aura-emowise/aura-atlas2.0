@@ -1,5 +1,4 @@
-
-# aura-atlas2.0
+Google Maps Platform Awards
 final iteration
 
 
