@@ -7,6 +7,7 @@
     <title>CogniNav Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* ... CSS без изменений ... */
         body { font-family: 'Inter', sans-serif; margin: 0; padding: 0; overflow: hidden; }
         #app-container { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
         #left-panel { width: 300px; min-width: 300px; background-color: #f0f4f8; padding: 1rem; display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; border-right: 1px solid #e2e8f0; }
@@ -31,6 +32,7 @@
     </style>
 </head>
 <body class="bg-gray-100">
+    <!-- ... HTML без изменений ... -->
     <div id="app-container">
         <div id="left-panel">
             <h1 class="text-2xl font-bold text-gray-800 mb-4">CogniNav Pro</h1>
@@ -85,6 +87,8 @@
         const GOOGLE_MAPS_API_KEY = "AIzaSyCHBYZuNzPGoLJhHRWKvSJtNpBufJTmvfE";
         
         let map;
+        let directionsService;
+        let directionsRenderer;
         let emotionMarkers = []; let poiMarkers = []; let polylines = [];
         let emergencyTimer; let countdownInterval;
         let emergencyActive = false; let logsPanelOpen = false;
@@ -109,27 +113,31 @@
         const initialMapCenter = { lat: 34.052235, lng: -118.243683 }; const initialZoom = 12;
         const normalRoutePath = [ { lat: 34.052, lng: -118.243 }, { lat: 34.060, lng: -118.250 }, { lat: 34.065, lng: -118.260 }];
         const hardTrafficRoutePath = [ { lat: 34.052, lng: -118.243 }, { lat: 34.055, lng: -118.248 }, { lat: 34.058, lng: -118.252 }, { lat: 34.060, lng: -118.250 }, { lat: 34.065, lng: -118.260 }];
-        const altRoutePath = [ { lat: 34.052, lng: -118.243 }, { lat: 34.058, lng: -118.235 }, { lat: 34.062, lng: -118.240 }, { lat: 34.065, lng: -118.260 }];
+        const altRouteStart = { lat: 34.052, lng: -118.243 };
+        const altRouteEnd = { lat: 34.065, lng: -118.260 };
         const simulatedPOIs = [ { name: 'Quiet Cafe "Cozy"', lat: 34.045, lng: -118.230, type: 'Cafe' }, { name: 'Green Oasis Park', lat: 34.070, lng: -118.270, type: 'Rest Area' }, { name: 'Serenity Hotel', lat: 34.050, lng: -118.255, type: 'Hotel' }, { name: 'Health Hospital', lat: 34.060, lng: -118.240, type: 'Hospital' }, { name: 'Rest Stop Gas Station', lat: 34.040, lng: -118.260, type: 'Gas Station' }];
         
         function initMap() {
             if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
-                addLogEntry('Google Maps script failed to load. Please check your internet connection and API key.', 'error');
-                mapElement.innerHTML = '<div style="padding: 2rem; text-align: center; color: red;">Failed to load Google Maps. Please check your API Key in the script.</div>';
+                addLogEntry('Google Maps script failed to load.', 'error');
+                mapElement.innerHTML = '<div style="padding: 2rem; text-align: center; color: red;">Failed to load Google Maps.</div>';
                 return;
             }
             map = new google.maps.Map(mapElement, { center: initialMapCenter, zoom: initialZoom, disableDefaultUI: true, zoomControl: true, gestureHandling: 'greedy' });
+            directionsService = new google.maps.DirectionsService();
+            directionsRenderer = new google.maps.DirectionsRenderer({ suppressMarkers: true, polylineOptions: { strokeColor: '#ec4899', strokeWeight: 6 } });
+            directionsRenderer.setMap(map);
             updateMapVisuals();
-            map.addListener('zoom_changed', () => addLogEntry(`Map zoom changed: ${map.getZoom()}. Pixels transform into zones.`));
+            map.addListener('zoom_changed', () => addLogEntry(`Map zoom changed: ${map.getZoom()}.`));
         }
 
+        // ... (остальные функции без изменений до updateMapVisuals) ...
         function updateVitalSignsDisplay() { pulseElement.textContent = `${vitalSigns.pulse} bpm`; spo2Element.textContent = `${vitalSigns.spo2}%`; kepElement.textContent = `${vitalSigns.kep} uS`; }
         function generateRandomVitalSigns(ranges) { vitalSigns.pulse = Math.floor(Math.random() * (ranges.pulse.max - ranges.pulse.min + 1)) + ranges.pulse.min; vitalSigns.spo2 = Math.floor(Math.random() * (ranges.spo2.max - ranges.spo2.min + 1)) + ranges.spo2.min; vitalSigns.kep = parseFloat((Math.random() * (ranges.kep.max - ranges.kep.min) + ranges.kep.min).toFixed(1)); updateVitalSignsDisplay(); }
         function addLogEntry(message, type = 'info') { const timestamp = new Date().toLocaleTimeString(); const logEntry = document.createElement('div'); logEntry.className = `log-entry text-gray-800 ${type === 'warning' ? 'text-yellow-700' : ''} ${type === 'error' ? 'text-red-700' : ''}`; logEntry.innerHTML = `<span class="font-semibold">[${timestamp}]</span> ${message}`; logsContent.prepend(logEntry); if (logsContent.children.length > 50) { logsContent.removeChild(logsContent.lastChild); } }
         function toggleLogsPanel() { logsPanelOpen = !logsPanelOpen; logsPanel.classList.toggle('open', logsPanelOpen); toggleLogsBtn.querySelector('svg').classList.toggle('rotate-180', logsPanelOpen); addLogEntry(`Operation log ${logsPanelOpen ? 'opened' : 'hidden'}.`); }
         function showNotification(message, type, duration = 3000) { notificationPopup.textContent = message; notificationPopup.className = `notification ${type} show`; setTimeout(() => { notificationPopup.classList.remove('show'); setTimeout(() => notificationPopup.classList.add('hidden'), 300); }, duration); notificationPopup.classList.remove('hidden'); }
-        
-        function clearMapOverlays() { emotionMarkers.forEach(marker => marker.setMap(null)); emotionMarkers = []; polylines.forEach(polyline => polyline.setMap(null)); polylines = []; }
+        function clearMapOverlays() { emotionMarkers.forEach(marker => marker.setMap(null)); emotionMarkers = []; polylines.forEach(polyline => polyline.setMap(null)); polylines = []; directionsRenderer.setDirections({routes: []}); } // Очищаем и реальный маршрут
         function clearPoiMarkers() { poiMarkers.forEach(marker => marker.setMap(null)); poiMarkers = []; }
         const generateRandomEmotionalPixels = (count, bounds) => { const pixels = []; for (let i = 0; i < count; i++) { const lat = bounds.south + Math.random() * (bounds.north - bounds.south); const lng = bounds.west + Math.random() * (bounds.east - bounds.west); pixels.push({ lat, lng }); } return pixels; };
 
@@ -137,115 +145,58 @@
             if (!map) return;
             clearMapOverlays();
             const bounds = map.getBounds() || new google.maps.LatLngBounds( new google.maps.LatLng(initialMapCenter.lat - 0.1, initialMapCenter.lng - 0.1), new google.maps.LatLng(initialMapCenter.lat + 0.1, initialMapCenter.lng + 0.1) );
-            let pinkPixelCount, purplePixelCount, currentRoutePath, routeColor;
-            if (mapState === 'normal') { pinkPixelCount = 100; purplePixelCount = 20; currentRoutePath = normalRoutePath; routeColor = '#ec4899'; } 
-            else if (mapState === 'hard_traffic') { pinkPixelCount = 30; purplePixelCount = 150; currentRoutePath = hardTrafficRoutePath; routeColor = '#333333'; } 
-            else if (mapState === 'alt_route_active') { pinkPixelCount = 120; purplePixelCount = 10; currentRoutePath = altRoutePath; routeColor = '#ec4899'; }
+            
+            let pinkPixelCount = 0, purplePixelCount = 0;
+
+            if (mapState === 'normal') {
+                pinkPixelCount = 100; purplePixelCount = 20;
+                const routePolyline = new google.maps.Polyline({ path: normalRoutePath, geodesic: true, strokeColor: '#ec4899', strokeOpacity: 0.8, strokeWeight: 5, map: map, zIndex: 2, icons: [{ icon: { path: google.maps.SymbolPath.CIRCLE, scale: 4, strokeColor: '#ec4899' }, offset: '0', repeat: '12px' }] });
+                polylines.push(routePolyline);
+            } else if (mapState === 'hard_traffic') {
+                pinkPixelCount = 30; purplePixelCount = 150;
+                const routePolyline = new google.maps.Polyline({ path: hardTrafficRoutePath, geodesic: true, strokeColor: '#333333', strokeOpacity: 0.8, strokeWeight: 5, map: map, zIndex: 2, icons: [{ icon: { path: google.maps.SymbolPath.CIRCLE, scale: 4, strokeColor: '#333333' }, offset: '0', repeat: '12px' }] });
+                polylines.push(routePolyline);
+            } else if (mapState === 'alt_route_active') {
+                pinkPixelCount = 120; purplePixelCount = 10;
+                // Маршрут будет нарисован функцией handleAltRoute
+            }
             
             const createMarker = (position, color) => new google.maps.Marker({ position, map, icon: { path: google.maps.SymbolPath.CIRCLE, fillColor: color, fillOpacity: 0.7, strokeWeight: 0, scale: 3 }, zIndex: 1 });
             generateRandomEmotionalPixels(pinkPixelCount, bounds).forEach(p => emotionMarkers.push(createMarker(p, '#ec4899')));
             generateRandomEmotionalPixels(purplePixelCount, bounds).forEach(p => emotionMarkers.push(createMarker(p, '#8b5cf6')));
-            
-            const routePolyline = new google.maps.Polyline({ path: currentRoutePath, geodesic: true, strokeColor: routeColor, strokeOpacity: 0.8, strokeWeight: 5, map: map, zIndex: 2, icons: [{ icon: { path: google.maps.SymbolPath.CIRCLE, scale: 4, strokeColor: routeColor }, offset: '0', repeat: '12px' }] });
-            polylines.push(routePolyline);
         }
 
         function handleAltRoute() {
             if (!map) return;
             const altRouteBtn = document.getElementById('alt-route-btn');
             altRouteBtn.disabled = true; altRouteBtn.textContent = 'SEARCHING...';
-            addLogEntry('Requesting alternative route...');
-            setTimeout(() => {
-                mapState = 'alt_route_active';
-                updateMapVisuals();
-                map.setCenter(altRoutePath[0]); map.setZoom(13);
-                addLogEntry('Alternative route found. Map updated.', 'info');
-                altRouteBtn.disabled = false; altRouteBtn.textContent = 'ALT ROUTE';
-            }, 1000);
-        }
-
-        function handleNearRestPOI() {
-            if (!map) return;
-            const nearRestPoiBtn = document.getElementById('near-rest-poi-btn');
-            nearRestPoiBtn.disabled = true; nearRestPoiBtn.textContent = 'SEARCHING...';
+            addLogEntry('Requesting REAL alternative route from Directions API...');
             
-            setTimeout(() => {
-                poiDropdown.classList.toggle('hidden');
-                clearPoiMarkers();
-                if (!poiDropdown.classList.contains('hidden')) {
-                    addLogEntry('Searching for nearest rest POIs...'); showNotification('Loading POIs...', 'warning');
-                    poiList.innerHTML = '';
-                    simulatedPOIs.forEach(poi => {
-                        const listItem = document.createElement('li'); listItem.textContent = `${poi.name} (${poi.type})`; poiList.appendChild(listItem);
-                        poiMarkers.push(new google.maps.Marker({ position: { lat: poi.lat, lng: poi.lng }, map, title: poi.name, icon: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png', zIndex: 3 }));
-                    });
-                    addLogEntry('List of nearest POIs loaded and displayed on map.', 'info');
-                } else {
-                    addLogEntry('POI list hidden.', 'info');
-                }
-                nearRestPoiBtn.disabled = false; nearRestPoiBtn.textContent = 'NEAR REST POI';
-            }, 500);
-        }
-
-        function handleHardTraffic() {
-            if (!map) return;
-            addLogEntry('Simulating external event: Hard Traffic / Accident.', 'info');
-            addLogEntry("Driver's vital signs are worsening due to stress...", 'warning');
-            generateRandomVitalSigns({ pulse: { min: 90, max: 110 }, spo2: { min: 94, max: 96 }, kep: { min: 15, max: 25 } });
-            addLogEntry(`CogniNav Pro detected changes: Pulse ${vitalSigns.pulse}, SpO2 ${vitalSigns.spo2}, EDA ${vitalSigns.kep}.`, 'warning');
-            
-            mapState = 'hard_traffic';
+            mapState = 'alt_route_active';
             updateMapVisuals();
-            map.setCenter(hardTrafficRoutePath[1]); map.setZoom(14);
-            addLogEntry('Map updated to reflect high-stress zones.', 'warning');
-            showNotification('Stress detected! Consider an alternative route or a break.', 'emergency', 7000);
-        }
 
-        function handleEmergency() {
-            if (emergencyActive) return;
-            addLogEntry('Simulating external event: Sudden Disease / Drowsiness.', 'info');
-            addLogEntry('CRITICAL DROP IN VITAL SIGNS DETECTED!', 'error');
-            generateRandomVitalSigns({ pulse: { min: 40, max: 140 }, spo2: { min: 80, max: 92 }, kep: { min: 25, max: 50 } });
-            addLogEntry(`CogniNav Pro has activated the emergency protocol due to critical vitals: Pulse ${vitalSigns.pulse}, SpO2 ${vitalSigns.spo2}, EDA ${vitalSigns.kep}.`, 'error');
-
-            emergencyActive = true;
-            emergencyModalOverlay.classList.add('show');
-            let countdown = 10;
-            const updateModalCountdown = () => { if (countdown >= 0) { emergencyModalOverlay.querySelector('.modal-content p:first-of-type').textContent = `ATTENTION! Critical changes detected! Automatic call in ${countdown} sec.`; countdown--; } };
-            updateModalCountdown();
-            countdownInterval = setInterval(updateModalCountdown, 1000);
-            emergencyTimer = setTimeout(() => { if (emergencyActive) callEmergencyServices(); }, 10000);
+            directionsService.route({
+                origin: altRouteStart,
+                destination: altRouteEnd,
+                travelMode: 'DRIVING'
+            }, (response, status) => {
+                if (status === 'OK') {
+                    addLogEntry('Real route received and displayed.', 'info');
+                    directionsRenderer.setDirections(response);
+                } else {
+                    addLogEntry('Directions request failed due to ' + status, 'error');
+                }
+                altRouteBtn.disabled = false; altRouteBtn.textContent = 'ALT ROUTE';
+            });
         }
-
-        function callEmergencyServices() {
-            if (!map) return;
-            clearInterval(countdownInterval);
-            addLogEntry('Automatic emergency services call activated!', 'error');
-            showNotification('Emergency services called! Your geolocation has been sent.', 'emergency', 10000);
-            emergencyActive = false; emergencyModalOverlay.classList.remove('show');
-            const currentLocation = map.getCenter();
-            addLogEntry(`Geolocation sent: Lat ${currentLocation.lat().toFixed(6)}, Lng ${currentLocation.lng().toFixed(6)}.`, 'error');
-        }
-
-        function deactivateEmergency() {
-            clearTimeout(emergencyTimer); clearInterval(countdownInterval);
-            emergencyActive = false; emergencyModalOverlay.classList.remove('show');
-            addLogEntry('Emergency protocol manually deactivated by user.', 'info');
-            showNotification('Emergency call canceled.', 'warning');
-            handleNormal();
-        }
-
-        function handleNormal() {
-            if (!map) return;
-            addLogEntry('Resetting to normal state.', 'info');
-            showNotification('System in normal mode.', 'info');
-            generateRandomVitalSigns({ pulse: { min: 65, max: 80 }, spo2: { min: 97, max: 100 }, kep: { min: 2, max: 8 } });
-            mapState = 'normal'; updateMapVisuals();
-            map.setCenter(initialMapCenter); map.setZoom(initialZoom);
-            poiDropdown.classList.add('hidden'); clearPoiMarkers();
-            clearTimeout(emergencyTimer); clearInterval(countdownInterval);
-            emergencyActive = false; emergencyModalOverlay.classList.remove('show');
-        }
+        
+        // ... (остальные функции без изменений) ...
+        function handleNearRestPOI() { if (!map) return; const nearRestPoiBtn = document.getElementById('near-rest-poi-btn'); nearRestPoiBtn.disabled = true; nearRestPoiBtn.textContent = 'SEARCHING...'; setTimeout(() => { poiDropdown.classList.toggle('hidden'); clearPoiMarkers(); if (!poiDropdown.classList.contains('hidden')) { addLogEntry('Searching for nearest rest POIs...'); showNotification('Loading POIs...', 'warning'); poiList.innerHTML = ''; simulatedPOIs.forEach(poi => { const listItem = document.createElement('li'); listItem.textContent = `${poi.name} (${poi.type})`; poiList.appendChild(listItem); poiMarkers.push(new google.maps.Marker({ position: { lat: poi.lat, lng: poi.lng }, map, title: poi.name, icon: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png', zIndex: 3 })); }); addLogEntry('List of nearest POIs loaded and displayed on map.', 'info'); } else { addLogEntry('POI list hidden.', 'info'); } nearRestPoiBtn.disabled = false; nearRestPoiBtn.textContent = 'NEAR REST POI'; }, 500); }
+        function handleHardTraffic() { if (!map) return; addLogEntry('Simulating external event: Hard Traffic / Accident.', 'info'); addLogEntry("Driver's vital signs are worsening due to stress...", 'warning'); generateRandomVitalSigns({ pulse: { min: 90, max: 110 }, spo2: { min: 94, max: 96 }, kep: { min: 15, max: 25 } }); addLogEntry(`CogniNav Pro detected changes: Pulse ${vitalSigns.pulse}, SpO2 ${vitalSigns.spo2}, EDA ${vitalSigns.kep}.`, 'warning'); mapState = 'hard_traffic'; updateMapVisuals(); map.setCenter(hardTrafficRoutePath[1]); map.setZoom(14); addLogEntry('Map updated to reflect high-stress zones.', 'warning'); showNotification('Stress detected! Consider an alternative route or a break.', 'emergency', 7000); }
+        function handleEmergency() { if (emergencyActive) return; addLogEntry('Simulating external event: Sudden Disease / Drowsiness.', 'info'); addLogEntry('CRITICAL DROP IN VITAL SIGNS DETECTED!', 'error'); generateRandomVitalSigns({ pulse: { min: 40, max: 140 }, spo2: { min: 80, max: 92 }, kep: { min: 25, max: 50 } }); addLogEntry(`CogniNav Pro has activated the emergency protocol due to critical vitals: Pulse ${vitalSigns.pulse}, SpO2 ${vitalSigns.spo2}, EDA ${vitalSigns.kep}.`, 'error'); emergencyActive = true; emergencyModalOverlay.classList.add('show'); let countdown = 10; const updateModalCountdown = () => { if (countdown >= 0) { emergencyModalOverlay.querySelector('.modal-content p:first-of-type').textContent = `ATTENTION! Critical changes detected! Automatic call in ${countdown} sec.`; countdown--; } }; updateModalCountdown(); countdownInterval = setInterval(updateModalCountdown, 1000); emergencyTimer = setTimeout(() => { if (emergencyActive) callEmergencyServices(); }, 10000); }
+        function callEmergencyServices() { if (!map) return; clearInterval(countdownInterval); addLogEntry('Automatic emergency services call activated!', 'error'); showNotification('Emergency services called! Your geolocation has been sent.', 'emergency', 10000); emergencyActive = false; emergencyModalOverlay.classList.remove('show'); const currentLocation = map.getCenter(); addLogEntry(`Geolocation sent: Lat ${currentLocation.lat().toFixed(6)}, Lng ${currentLocation.lng().toFixed(6)}.`, 'error'); }
+        function deactivateEmergency() { clearTimeout(emergencyTimer); clearInterval(countdownInterval); emergencyActive = false; emergencyModalOverlay.classList.remove('show'); addLogEntry('Emergency protocol manually deactivated by user.', 'info'); showNotification('Emergency call canceled.', 'warning'); handleNormal(); }
+        function handleNormal() { if (!map) return; addLogEntry('Resetting to normal state.', 'info'); showNotification('System in normal mode.', 'info'); generateRandomVitalSigns({ pulse: { min: 65, max: 80 }, spo2: { min: 97, max: 100 }, kep: { min: 2, max: 8 } }); mapState = 'normal'; updateMapVisuals(); map.setCenter(initialMapCenter); map.setZoom(initialZoom); poiDropdown.classList.add('hidden'); clearPoiMarkers(); clearTimeout(emergencyTimer); clearInterval(countdownInterval); emergencyActive = false; emergencyModalOverlay.classList.remove('show'); }
 
         document.addEventListener('DOMContentLoaded', () => {
             if (!GOOGLE_MAPS_API_KEY || GOOGLE_MAPS_API_KEY === "YOUR_API_KEY_HERE") {
@@ -253,7 +204,8 @@
                 mapElement.innerHTML = `<div style="padding: 2rem; text-align: center; color: red;">${errorMsg}</div>`; return;
             }
             const script = document.createElement('script');
-            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`;
+            // ИЗМЕНЕНИЕ: Добавлена библиотека routes для построения реальных маршрутов
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap&libraries=routes`;
             script.async = true; script.defer = true;
             script.onerror = () => initMap();
             document.head.appendChild(script);
